@@ -39,8 +39,8 @@ data:
   config.toml: |
     concurrent = {{ .Values.concurrent }}
     check_interval = {{ .Values.checkInterval }}
-    {{ if .Values.metrics.enabled }}
-    listen_address = :{{ .Values.metrics.listenPort | int }}
+    {{ if .Values.metrics.enabled }} 
+    metrics_server = ':{{ .Values.metrics.listenPort | int }}'
     {{ end }}
   configure: |
     set -e
