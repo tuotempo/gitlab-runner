@@ -29,5 +29,5 @@ data:
     concurrent = {{ .Values.concurrent }}
     check_interval = {{ .Values.checkInterval }}
     {{ if .Values.metrics.enabled }}
-    listen_address = :{{ .Values.metrics.listenPort }}
+    listen_address = :{{ .Values.metrics.listenPort | int }}
     {{ end }}
