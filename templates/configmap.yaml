@@ -28,10 +28,17 @@ data:
       export CI_SERVER_TOKEN=$(cat /secrets/runner-token)
     fi
 
-    /entrypoint register --non-interactive \
-      {{- range .Values.runners.imagePullSecrets }}
-      --kubernetes-image-pull-secrets {{ . | quote }} \
-      {{- end }}
+    for i in $(seq 1 10)
+    do
+      if /entrypoint register --non-interactive \
+        {{- range .Values.runners.imagePullSecrets }}
+        --kubernetes-image-pull-secrets {{ . | quote }} \
+        {{- end }}; then
+        exit 0
+      fi
+      sleep 10s
+    done
+    exit 1
 
     # Start the runner
     /entrypoint run --user=gitlab-runner \
@@ -46,11 +53,3 @@ data:
   configure: |
     set -e
     cp /init-secrets/* /secrets
-    for i in $(seq 1 10)
-    do
-      if wget -O /dev/null -S --tries=3 --timeout=10 {{ template "gitlab-runner.gitlabUrl" . }} --no-check-certificate; then
-        exit 0
-      fi
-      sleep 10s
-    done
-    exit 1
