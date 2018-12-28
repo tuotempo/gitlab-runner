@@ -100,24 +100,24 @@ spec:
             {{- if and .Values.runners.cache .Values.runners.cache.cacheType }}
             {{-   if eq .Values.runners.cache.cacheType "s3"}}
             - secret:
-                name: {{ template "gitlab-runner.cache.secret" . }}
+                name: {{ template "gitlab-runner.cache.secret.name" . }}
                 items:
-                  - key: accesskey
+                  - key: {{ template "gitlab-runner.cache.secret.accessKey" . }}
                     path: s3-access-key
-                  - key: secretkey
+                  - key: {{ template "gitlab-runner.cache.secret.secretKey" . }}
                     path: s3-secret-key
             {{-   end }}
             {{-   if eq .Values.runners.cache.cacheType "gcs"}}
             - secret:
-                name: {{ template "gitlab-runner.cache.secret" . }}
+                name: {{ template "gitlab-runner.cache.secret.name" . }}
             {{-   end }}
             {{- end }}
             - secret:
-                name: {{ template "gitlab-runner.secret" . }}
+                name: {{ template "gitlab-runner.secret.name" . }}
                 items:
-                  - key: runner-registration-token
+                  - key: {{ template "gitlab-runner.secret.runnerRegistrationTokenKey" . }}
                     path: runner-registration-token
-                  - key: runner-token
+                  - key: {{ template "gitlab-runner.secret.runnerTokenKey" . }}
                     path: runner-token
       {{- if .Values.certsSecretName }}
       - name: custom-certs

@@ -18,15 +18,43 @@ We truncate at 63 chars because some Kubernetes name fields are limited to this 
 {{/*
 Define the name of the secret containing the tokens
 */}}
-{{- define "gitlab-runner.secret" -}}
+{{- define "gitlab-runner.secret.name" -}}
 {{- default (include "gitlab-runner.fullname" .) .Values.runners.secret | quote -}}
+{{- end -}}
+
+{{/*
+Define the key of the secret containing the runner-registration-token
+*/}}
+{{- define "gitlab-runner.secret.runnerRegistrationTokenKey" -}}
+{{- default "runner-registration-token" .Values.runners.runnerRegistrationTokenKey | quote -}}
+{{- end -}}
+
+{{/*
+Define the key of the secret containing the runner-token
+*/}}
+{{- define "gitlab-runner.secret.runnerTokenKey" -}}
+{{- default "runner-token" .Values.runners.runnerTokenKey | quote -}}
 {{- end -}}
 
 {{/*
 Define the name of the s3 cache secret
 */}}
-{{- define "gitlab-runner.cache.secret" -}}
+{{- define "gitlab-runner.cache.secret.name" -}}
 {{- default "s3access" .Values.runners.cache.secretName | quote -}}
+{{- end -}}
+
+{{/*
+Define the key of the s3 cache secret containing access key
+*/}}
+{{- define "gitlab-runner.cache.secret.accessKey" -}}
+{{- default "accesskey" .Values.runners.cache.accessKey | quote -}}
+{{- end -}}
+
+{{/*
+Define the key of the s3 cache secret containing secret key
+*/}}
+{{- define "gitlab-runner.cache.secret.secretKey" -}}
+{{- default "secretkey" .Values.runners.cache.secretKey | quote -}}
 {{- end -}}
 
 {{/*
