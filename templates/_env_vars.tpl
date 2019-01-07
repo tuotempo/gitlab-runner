@@ -6,7 +6,7 @@
 - name: RUNNER_EXECUTOR
   value: "kubernetes"
 - name: REGISTER_LOCKED
-  value: {{ .Values.runners.locked | quote | default "\"true\"" }}
+  value: {{ .Values.runners.locked | toString | default true | quote }}
 - name: RUNNER_TAG_LIST
   value: {{ default "" .Values.runners.tags | quote }}
 - name: KUBERNETES_IMAGE
