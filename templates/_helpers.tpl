@@ -65,3 +65,37 @@ Define the image, using .Chart.AppVersion and GitLab Runner image as a default v
 {{-   $image := printf "gitlab/gitlab-runner:alpine-%s" $appVersion -}}
 {{-   default $image .Values.image }}
 {{- end -}}
+
+{{/*
+Define environment variables that will be attached to all deployment pods
+*/}}
+{{- define "gitlab-runner.runner-env-vars" }}
+{{-   if .Values.envVars -}}
+{{-     range .Values.envVars }}
+- name: {{ .name }}
+  value: {{ .value | quote }}
+{{-     end }}
+{{-   end }}
+{{- end }}
+
+{{/*
+Template for preparing a comma-separated list of quoted values from a slice
+*/}}
+{{- define "gitlab-runner.join-slice-by-comma-quoted" }}
+{{-   $items := (list) -}}
+{{-   range . -}}
+{{-     $items = . | quote | append $items -}}
+{{-   end -}}
+{{- join "," $items }}
+{{- end }}
+
+{{/*
+Template for preparing a comma-separated list of quoted values from a slice
+*/}}
+{{- define "gitlab-runner.join-hash-by-comma-quoted" }}
+{{-    $items := (list) -}}
+{{-   range $key, $value := . -}}
+{{-     $items = printf "%s=%s" $key $value | quote | append $items -}}
+{{-   end -}}
+{{- join "," $items }}
+{{- end }}

@@ -34,7 +34,7 @@ spec:
         image: {{ include "gitlab-runner.image" . }}
         imagePullPolicy: {{ default "" .Values.imagePullPolicy | quote }}
         env:
-        {{ include "gitlab-runner.runner-env-vars" . | indent 8 }}
+        {{- include "gitlab-runner.runner-env-vars" . | indent 8 }}
         volumeMounts:
         - name: runner-secrets
           mountPath: /secrets
@@ -60,7 +60,7 @@ spec:
         {{- end }}
         command: ["/bin/bash", "/scripts/entrypoint"]
         env:
-        {{ include "gitlab-runner.runner-env-vars" . | indent 8 }}
+        {{- include "gitlab-runner.runner-env-vars" . | indent 8 }}
         livenessProbe:
           exec:
             command: ["/bin/bash", "/scripts/check-live"]

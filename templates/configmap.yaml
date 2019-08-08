@@ -53,6 +53,83 @@ data:
     {{- if .Values.metrics.enabled }}
     listen_address = '[::]:9252'
     {{- end }}
+  config.template.toml: |
+    # This is a Runner configuration template file, that will be used to feed the final configuration
+    # saved after registering the Runner. Thanks to this we can easily handled most of the setting
+    # (instead of relaying on environment variables and/or command line options) and for some of the
+    # settings, like Kubernetes volumes section, it's the only way to automatise the configuration.
+    # Please read https://docs.gitlab.com/runner/register/index.html#runners-configuration-template-file
+    # for detailed description of how this feature works
+    #
+
+    [[runners]]
+      request_concurrency = {{ default 1 .Values.runners.requestConcurrency }}
+      {{- if .Values.runners.cloneUrl }}
+      clone_url = {{ .Values.runners.cloneUrl | quote }}
+      {{- end }}
+      environment = [{{ include "gitlab-runner.join-hash-by-comma-quoted" .Values.runners.env }}]
+
+      [runners.kubernetes]
+        image = {{ .Values.runners.image | quote }}
+        namespace = {{ default .Release.Namespace .Values.runners.namespace | quote }}
+        {{ if .Values.runners.privileged }}privileged = true{{- end }}
+
+        pull_policy = {{ default "" .Values.runners.imagePullPolicy | quote }}
+        image_pull_secrets = [{{ include "gitlab-runner.join-slice-by-comma-quoted" .Values.runners.imagePullSecrets }}]
+
+        cpu_limit = {{ default "" .Values.runners.builds.cpuLimit | quote }}
+        memory_limit = {{ default "" .Values.runners.builds.memoryLimit | quote }}
+        cpu_requests = {{ default "" .Values.runners.builds.cpuRequests | quote }}
+        memory_requests = {{ default "" .Values.runners.builds.memoryRequests| quote }}
+
+        service_account = {{ default "" .Values.runners.serviceAccountName | quote }}
+        service_cpu_limit = {{ default "" .Values.runners.services.cpuLimit | quote }}
+        service_memory_limit = {{ default "" .Values.runners.services.memoryLimit | quote }}
+        service_cpu_requests = {{ default "" .Values.runners.services.cpuRequests | quote }}
+        service_memory_requests = {{ default "" .Values.runners.services.memoryRequests | quote }}
+
+        helper_image = {{ default "" .Values.runners.helpers.image | quote }}
+
+        helper_cpu_limit = {{ default "" .Values.runners.helpers.cpuLimit | quote }}
+        helper_memory_limit = {{ default "" .Values.runners.helpers.memoryLimit | quote }}
+        helper_cpu_requests = {{ default "" .Values.runners.helpers.cpuRequests | quote }}
+        helper_memory_requests = {{ default "" .Values.runners.helpers.memoryRequests | quote }}
+
+        [runners.kubernetes.node_selector]
+          {{- range $key, $val := .Values.runners.nodeSelector }}
+          {{ $key | quote }} = {{ $val | quote }}
+          {{- end }}
+
+        [runners.kubernetes.pod_labels]
+          {{- range $key, $val := .Values.runners.podLabels }}
+          {{ $key | quote }} = {{ $val | quote }}
+          {{- end }}
+
+        [runners.kubernetes.pod_annotations]
+          {{- range $key, $val := .Values.runners.podAnnotations }}
+          {{ $key | quote }} = {{ $val | quote }}
+          {{- end }}
+
+      {{- if and .Values.runners.cache .Values.runners.cache.cacheType }}
+      [runners.cache]
+        Type = {{ default "" .Values.runners.cache.cacheType | quote }}
+        Path = {{ coalesce .Values.runners.cache.cachePath .Values.runners.cache.s3CachePath | default "" | quote }}
+        {{ if .Values.runners.cache.cacheShared }}Shared = true{{- end }}
+
+        {{- if eq .Values.runners.cache.cacheType "s3" }}
+        [runners.cache.s3]
+          ServerAdress = {{ include "gitlab-runner.cache.s3ServerAddress" . }}
+          BucketName = {{ default "" .Values.runners.cache.s3BucketName | quote }}
+          BucketLocation = {{ default "" .Values.runners.cache.s3BucketLocation | quote }}
+          {{ if .Values.runners.cache.s3CacheInsecure }}Insecure = true{{- end}}
+        {{- end }}
+
+        {{- if eq .Values.runners.cache.cacheType "gcs" }}
+        [runners.cache.gcs]
+          BucketName = {{ default "" .Values.runners.cache.gcsBucketName | quote }}
+        {{- end }}
+      {{- end }}
+
   configure: |
     set -e
     cp /init-secrets/* /secrets
@@ -63,24 +140,20 @@ data:
     for i in $(seq 1 "${MAX_REGISTER_ATTEMPTS}"); do
       echo "Registration attempt ${i} of ${MAX_REGISTER_ATTEMPTS}"
       /entrypoint register \
-        {{- range .Values.runners.imagePullSecrets }}
-        --kubernetes-image-pull-secrets {{ . | quote }} \
-        {{- end }}
-        {{- range $key, $val := .Values.runners.nodeSelector }}
-        --kubernetes-node-selector {{ $key | quote }}:{{ $val | quote }} \
-        {{- end }}
-        {{- range $key, $value := .Values.runners.podLabels }}
-        --kubernetes-pod-labels {{ $key | quote }}:{{ $value | quote }} \
-        {{- end }}
-        {{- range $key, $val := .Values.runners.podAnnotations }}
-        --kubernetes-pod-annotations {{ $key | quote }}:{{ $val | quote }} \
-        {{- end }}
-        {{- range $key, $value := .Values.runners.env }}
-        --env {{ $key | quote -}} = {{- $value | quote }} \
+        --url {{ include "gitlab-runner.gitlabUrl" . }} \
+        {{- if or (not (hasKey .Values.runners "locked")) .Values.runners.locked }}
+        --locked=true \
+        {{- else -}}
+        --locked=false \
         {{- end }}
         {{- if and (hasKey .Values.runners "runUntagged") .Values.runners.runUntagged }}
         --run-untagged=true \
         {{- end }}
+        {{- if .Values.runners.tags }}
+        --tag-list {{ .Values.runners.tags | quote }} \
+        {{- end }}
+        --template-config /scripts/config.template.toml \
+        --executor "kubernetes" \
         --non-interactive
 
       retval=$?
