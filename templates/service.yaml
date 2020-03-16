@@ -1,0 +1,21 @@
+{{- if .Values.metrics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "gitlab-runner.fullname" . }}
+  labels:
+    app: {{ include "gitlab-runner.fullname" . }}
+    chart: {{ include "gitlab-runner.chart" . }}
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+spec:
+  type: {{ .Values.metrics.service.type }}
+  ports:
+    - port: {{ .Values.metrics.service.port }}
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app: {{ include "gitlab-runner.fullname" . }}
+    release: "{{ .Release.Name }}"
+{{- end }}

@@ -1,0 +1,39 @@
+{{- if .Values.metrics.enabled }}
+{{- if .Values.metrics.ingress.enabled -}}
+{{- $fullName := include "gitlab-runner.fullname" . -}}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: {{ $fullName }}
+  labels:
+    app: {{ $fullName }}
+    chart: {{ include "gitlab-runner.chart" . }}
+    release: "{{ .Release.Name }}"
+    heritage: "{{ .Release.Service }}"
+{{- with .Values.metrics.ingress.annotations }}
+  annotations:
+{{ toYaml . | indent 4 }}
+{{- end }}
+spec:
+{{- if .Values.metrics.ingress.tls }}
+  tls:
+  {{- range .Values.metrics.ingress.tls }}
+    - hosts:
+      {{- range .hosts }}
+        - {{ . }}
+      {{- end }}
+      secretName: {{ .secretName }}
+  {{- end }}
+{{- end }}
+  rules:
+  {{- range .Values.metrics.ingress.hosts }}
+    - host: {{ . }}
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: {{ $fullName }}
+              servicePort: metrics
+  {{- end }}
+{{- end }}
+{{- end }}
