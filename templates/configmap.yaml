@@ -79,7 +79,7 @@ data:
         {{-   if eq (.operator | default "Equal") "Equal"  }}
         {{-     $keyValue = print $keyValue "=" (.value | default "" ) }}
         {{-   end }}
-        --kubernetes-node-tolerations {{ $keyValue }}:{{ .effect | quote }} \
+        --kubernetes-node-tolerations {{ print $keyValue ":" .effect | quote }} \
         {{- end }}
         {{- range $key, $value := .Values.runners.podLabels }}
         --kubernetes-pod-labels {{ $key | quote }}:{{ $value | quote }} \
@@ -106,7 +106,7 @@ data:
         exit 1
       fi
 
-      sleep 5 
+      sleep 5
     done
 
     exit 0
