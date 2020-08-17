@@ -18,3 +18,28 @@ $(GITLAB_CHANGELOG):
 	@mkdir -p $(shell dirname $(GITLAB_CHANGELOG))
 	@curl -sL "$(DOWNLOAD_URL)" -o "$(GITLAB_CHANGELOG)"
 	@chmod +x "$(GITLAB_CHANGELOG)"
+
+render: tests/*.yaml
+	@for file in $^ ; do \
+		helm template -n runner -f $${file} . > $${file}.rendered; \
+	done
+
+test: tests/*.yaml
+	helm lint .
+
+	@for file in $^ ; do \
+		echo "Executing 'helm template' with $${file}"; \
+		helm template -n runner -f $${file} . > /dev/null; \
+		if [ $$? -ne 0 ]; then \
+			echo "Executing "helm template" failed"; \
+			exit 1; \
+		fi; \
+	done
+
+	@for file in $^ ; do \
+		echo "Checking 'helm template' $${file} matches $${file}.rendered"; \
+		helm template -n runner -f $${file} . | git --no-pager diff --no-index -- $${file}.rendered -; \
+		if [ $$? -ne 0 ]; then \
+			echo "The rendered output of $${file} does not match $${file}.rendered - use "make render" to update."; \
+		fi \
+	done

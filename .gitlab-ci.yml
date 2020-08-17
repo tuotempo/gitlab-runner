@@ -14,7 +14,8 @@ stages:
 lint:
   stage: test
   script:
-  - helm lint .
+  - apk add --no-cache make
+  - make test
 
 release development:
   stage: release

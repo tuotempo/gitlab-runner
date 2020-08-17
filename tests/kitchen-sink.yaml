@@ -1,0 +1,150 @@
+image: gitlab/gitlab-runner:custom
+imagePullPolicy: Always
+gitlabUrl: https://example.com/
+runnerRegistrationToken: "zZzZzZ"
+unregisterRunners: true
+terminationGracePeriodSeconds: 3600
+concurrent: 10
+checkInterval: 30
+logLevel: warn
+logFormat: json
+
+rbac:
+  create: true
+  resources: ["pods", "pods/exec", "secrets"]
+  verbs: ["get", "list", "watch", "create", "patch", "delete"]
+  clusterWideAccess: false
+  serviceAccountAnnotations:
+    gitlab: runner
+
+metrics:
+  enabled: true
+
+runners:
+  image: ubuntu:16.04
+  imagePullPolicy: "always"
+  requestConcurrency: 1
+  locked: true
+  tags: "linux,kubernetes"
+  runUntagged: true
+  protected: true
+  privileged: true
+  namespace: runner-namespace
+  pollTimeout: 180
+  outputLimit: 4096
+
+  cache:
+    cacheType: s3
+    cachePath: "gitlab_runner"
+    cacheShared: true
+
+    s3ServerAddress: s3.amazonaws.com
+    s3BucketName:
+    s3BucketLocation:
+    s3CacheInsecure: false
+    secretName: s3access
+
+  builds:
+    cpuLimit: 200m
+    cpuLimitOverwriteMaxAllowed: 400m
+    memoryLimit: 256Mi
+    memoryLimitOverwriteMaxAllowed: 512Mi
+    cpuRequests: 100m
+    cpuRequestsOverwriteMaxAllowed: 200m
+    memoryRequests: 128Mi
+    memoryRequestsOverwriteMaxAllowed: 256Mi
+
+  services:
+    cpuLimit: 200m
+    memoryLimit: 256Mi
+    cpuRequests: 100m
+    memoryRequests: 128Mi
+
+  helpers:
+    cpuLimit: 200m
+    memoryLimit: 256Mi
+    cpuRequests: 100m
+    memoryRequests: 128Mi
+    image: "gitlab/gitlab-runner-helper:x86_64-custom"
+
+  pod_security_context:
+    run_as_non_root: true
+    run_as_user: 100
+    run_as_group: 100
+    fs_group: 65533
+    supplemental_groups: [101, 102]
+
+  cloneUrl: https://example.com/ci
+
+  nodeSelector:
+    disktype: ssd
+
+  nodeTolerations:
+    - effect: NoSchedule
+      key: key
+      value: value
+
+  podLabels:
+    gitlab: runner
+
+  podAnnotations:
+    gitlab: runner
+
+  env:
+    FOO: BAR
+    BAR: FOO
+
+securityContext:
+  fsGroup: 65533
+  runAsUser: 100
+
+resources:
+  limits:
+    memory: 256Mi
+    cpu: 200m
+  requests:
+    memory: 128Mi
+    cpu: 100m
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/e2e-az-name
+          operator: In
+          values:
+          - e2e-az1
+          - e2e-az2
+
+nodeSelector:
+  node-role.kubernetes.io/worker: "true"
+
+tolerations:
+- key: "node-role.kubernetes.io/worker"
+  operator: "Exists"
+
+envVars:
+- name: RUNNER_EXECUTOR
+  value: kubernetes
+
+hostAliases:
+- ip: "127.0.0.1"
+  hostnames:
+- "foo.local"
+- "bar.local"
+
+podAnnotations:
+  am.amazonaws.com/role: role_arn
+
+podLabels:
+  owner: runner-team
+
+hpa:
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - type: Pods
+    pods:
+      metricName: gitlab_runner_jobs
+      targetAverageValue: 400m

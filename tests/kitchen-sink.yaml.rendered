@@ -1,0 +1,516 @@
+---
+# Source: gitlab-runner/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "runner-gitlab-runner"
+  labels:
+    app: runner-gitlab-runner
+    chart: gitlab-runner-0.22.0-beta
+    release: "runner"
+    heritage: "Tiller"
+type: Opaque
+data:
+  runner-registration-token: "elp6Wnpa"
+  runner-token: ""
+---
+# Source: gitlab-runner/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: runner-gitlab-runner
+  labels:
+    app: runner-gitlab-runner
+    chart: gitlab-runner-0.22.0-beta
+    release: "runner"
+    heritage: "Tiller"
+data:
+  entrypoint: |
+    #!/bin/bash
+    set -e
+    mkdir -p /home/gitlab-runner/.gitlab-runner/
+    cp /scripts/config.toml /home/gitlab-runner/.gitlab-runner/
+
+    # Register the runner
+    if [[ -f /secrets/accesskey && -f /secrets/secretkey ]]; then
+      export CACHE_S3_ACCESS_KEY=$(cat /secrets/accesskey)
+      export CACHE_S3_SECRET_KEY=$(cat /secrets/secretkey)
+    fi
+
+    if [[ -f /secrets/gcs-applicaton-credentials-file ]]; then
+      export GOOGLE_APPLICATION_CREDENTIALS="/secrets/gcs-applicaton-credentials-file"
+    elif [[ -f /secrets/gcs-application-credentials-file ]]; then
+      export GOOGLE_APPLICATION_CREDENTIALS="/secrets/gcs-application-credentials-file"
+    else
+      if [[ -f /secrets/gcs-access-id && -f /secrets/gcs-private-key ]]; then
+        export CACHE_GCS_ACCESS_ID=$(cat /secrets/gcs-access-id)
+        # echo -e used to make private key multiline (in google json auth key private key is oneline with \n)
+        export CACHE_GCS_PRIVATE_KEY=$(echo -e $(cat /secrets/gcs-private-key))
+      fi
+    fi
+
+    if [[ -f /secrets/runner-registration-token ]]; then
+      export REGISTRATION_TOKEN=$(cat /secrets/runner-registration-token)
+    fi
+
+    if [[ -f /secrets/runner-token ]]; then
+      export CI_SERVER_TOKEN=$(cat /secrets/runner-token)
+    fi
+
+    if ! sh /scripts/register-the-runner; then
+      exit 1
+    fi
+
+    # Run pre-entrypoint-script
+    if ! bash /scripts/pre-entrypoint-script; then
+      exit 1
+    fi
+
+    # Start the runner
+    exec /entrypoint run --user=gitlab-runner \
+      --working-directory=/home/gitlab-runner
+
+  config.toml: |
+    concurrent = 10
+    check_interval = 30
+    log_level = "warn"
+    log_format = "json"
+    listen_address = ':9252'
+  configure: |
+    set -e
+    cp /init-secrets/* /secrets
+  register-the-runner: |
+    #!/bin/bash
+    MAX_REGISTER_ATTEMPTS=30
+
+    for i in $(seq 1 "${MAX_REGISTER_ATTEMPTS}"); do
+      echo "Registration attempt ${i} of ${MAX_REGISTER_ATTEMPTS}"
+      /entrypoint register \
+        --kubernetes-node-selector "disktype":"ssd" \
+        --kubernetes-node-tolerations key=value:"NoSchedule" \
+        --kubernetes-pod-labels "gitlab":"runner" \
+        --kubernetes-pod-annotations "gitlab":"runner" \
+        --env "BAR"="FOO" \
+        --env "FOO"="BAR" \
+        --run-untagged=true \
+        --access-level="ref_protected" \
+        --kubernetes-pod-security-context-supplemental-groups "101" \
+        --kubernetes-pod-security-context-supplemental-groups "102" \
+        --non-interactive
+
+      retval=$?
+
+      if [ ${retval} = 0 ]; then
+        break
+      elif [ ${i} = ${MAX_REGISTER_ATTEMPTS} ]; then
+        exit 1
+      fi
+
+      sleep 5
+    done
+
+    exit 0
+
+  check-live: |
+    #!/bin/bash
+    if /usr/bin/pgrep -f .*register-the-runner; then
+      exit 0
+    elif /usr/bin/pgrep gitlab.*runner; then
+      exit 0
+    else
+      exit 1
+    fi
+
+  pre-entrypoint-script: |
+    
+
+---
+# Source: gitlab-runner/templates/service-account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    gitlab: "runner"
+  name: runner-gitlab-runner
+  labels:
+    app: runner-gitlab-runner
+    chart: gitlab-runner-0.22.0-beta
+    release: "runner"
+    heritage: "Tiller"
+---
+# Source: gitlab-runner/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: runner-gitlab-runner
+  labels:
+    app: runner-gitlab-runner
+    chart: gitlab-runner-0.22.0-beta
+    release: "runner"
+    heritage: "Tiller"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: runner-gitlab-runner
+  template:
+    metadata:
+      labels:
+        app: runner-gitlab-runner
+        chart: gitlab-runner-0.22.0-beta
+        release: "runner"
+        heritage: "Tiller"
+        owner: "runner-team"
+      annotations:
+        checksum/configmap: 499757d7efd0e22471311a2b6f5876e564f3b9d5d854cf5ca803eb17942096da
+        checksum/secrets: f11ceac706c10fce259a5f871f771a74e333f160b4a9d76d1fdbe34800608ad6
+        prometheus.io/scrape: 'true'
+        prometheus.io/port: '9252'
+        am.amazonaws.com/role: "role_arn"
+    spec:
+      securityContext:
+        runAsUser: 100
+        fsGroup: 65533
+      terminationGracePeriodSeconds: 3600
+      initContainers:
+      - name: configure
+        command: ['sh', '/config/configure']
+        image: gitlab/gitlab-runner:custom
+        imagePullPolicy: "Always"
+        env:
+                
+        - name: CI_SERVER_URL
+          value: "https://example.com/"
+        - name: CLONE_URL
+          value: "https://example.com/ci"
+        - name: RUNNER_REQUEST_CONCURRENCY
+          value: "1"
+        - name: RUNNER_EXECUTOR
+          value: "kubernetes"
+        - name: REGISTER_LOCKED
+          value: "true"
+        - name: RUNNER_TAG_LIST
+          value: "linux,kubernetes"
+        - name: RUNNER_OUTPUT_LIMIT
+          value: "4096"
+        - name: KUBERNETES_IMAGE
+          value: "ubuntu:16.04"
+        
+        - name: KUBERNETES_PRIVILEGED
+          value: "true"
+        
+        - name: KUBERNETES_NAMESPACE
+          value: "runner-namespace"
+        - name: KUBERNETES_POLL_TIMEOUT
+          value: "180"
+        - name: KUBERNETES_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_CPU_LIMIT_OVERWRITE_MAX_ALLOWED
+          value: "400m"
+        - name: KUBERNETES_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_MEMORY_LIMIT_OVERWRITE_MAX_ALLOWED
+          value: "512Mi"
+        - name: KUBERNETES_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_CPU_REQUEST_OVERWRITE_MAX_ALLOWED
+          value: "200m"
+        - name: KUBERNETES_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_MEMORY_REQUEST_OVERWRITE_MAX_ALLOWED
+          value: "256Mi"
+        - name: KUBERNETES_SERVICE_ACCOUNT
+          value: ""
+        - name: KUBERNETES_SERVICE_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_SERVICE_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_SERVICE_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_SERVICE_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_HELPER_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_HELPER_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_HELPER_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_HELPER_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_HELPER_IMAGE
+          value: "gitlab/gitlab-runner-helper:x86_64-custom"
+        - name: KUBERNETES_PULL_POLICY
+          value: "always"
+        - name: KUBERNETES_POD_SECURITY_CONTEXT_RUN_AS_NON_ROOT
+          value: "true"
+        - name: KUBERNETES_POD_SECURITY_CONTEXT_RUN_AS_USER
+          value: "100"
+        - name: KUBERNETES_POD_SECURITY_CONTEXT_RUN_AS_GROUP
+          value: "100"
+        - name: KUBERNETES_POD_SECURITY_CONTEXT_FS_GROUP
+          value: "65533"
+        - name: CACHE_TYPE
+          value: "s3"
+        - name: CACHE_PATH
+          value: "gitlab_runner"
+        - name: CACHE_SHARED
+          value: "true"
+        - name: CACHE_S3_SERVER_ADDRESS
+          value: "s3.amazonaws.com"
+        - name: CACHE_S3_BUCKET_NAME
+          value: ""
+        - name: CACHE_S3_BUCKET_LOCATION
+          value: ""
+        - name: RUNNER_EXECUTOR
+          value: "kubernetes"
+        volumeMounts:
+        - name: runner-secrets
+          mountPath: /secrets
+          readOnly: false
+        - name: scripts
+          mountPath: /config
+          readOnly: true
+        - name: init-runner-secrets
+          mountPath: /init-secrets
+          readOnly: true
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          
+      serviceAccountName: runner-gitlab-runner
+      containers:
+      - name: runner-gitlab-runner
+        image: gitlab/gitlab-runner:custom
+        imagePullPolicy: "Always"
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/entrypoint", "unregister", "--all-runners"]
+        command: ["/bin/bash", "/scripts/entrypoint"]
+        env:
+                
+        - name: CI_SERVER_URL
+          value: "https://example.com/"
+        - name: CLONE_URL
+          value: "https://example.com/ci"
+        - name: RUNNER_REQUEST_CONCURRENCY
+          value: "1"
+        - name: RUNNER_EXECUTOR
+          value: "kubernetes"
+        - name: REGISTER_LOCKED
+          value: "true"
+        - name: RUNNER_TAG_LIST
+          value: "linux,kubernetes"
+        - name: RUNNER_OUTPUT_LIMIT
+          value: "4096"
+        - name: KUBERNETES_IMAGE
+          value: "ubuntu:16.04"
+        
+        - name: KUBERNETES_PRIVILEGED
+          value: "true"
+        
+        - name: KUBERNETES_NAMESPACE
+          value: "runner-namespace"
+        - name: KUBERNETES_POLL_TIMEOUT
+          value: "180"
+        - name: KUBERNETES_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_CPU_LIMIT_OVERWRITE_MAX_ALLOWED
+          value: "400m"
+        - name: KUBERNETES_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_MEMORY_LIMIT_OVERWRITE_MAX_ALLOWED
+          value: "512Mi"
+        - name: KUBERNETES_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_CPU_REQUEST_OVERWRITE_MAX_ALLOWED
+          value: "200m"
+        - name: KUBERNETES_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_MEMORY_REQUEST_OVERWRITE_MAX_ALLOWED
+          value: "256Mi"
+        - name: KUBERNETES_SERVICE_ACCOUNT
+          value: ""
+        - name: KUBERNETES_SERVICE_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_SERVICE_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_SERVICE_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_SERVICE_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_HELPER_CPU_LIMIT
+          value: "200m"
+        - name: KUBERNETES_HELPER_MEMORY_LIMIT
+          value: "256Mi"
+        - name: KUBERNETES_HELPER_CPU_REQUEST
+          value: "100m"
+        - name: KUBERNETES_HELPER_MEMORY_REQUEST
+          value: "128Mi"
+        - name: KUBERNETES_HELPER_IMAGE
+          value: "gitlab/gitlab-runner-helper:x86_64-custom"
+        - name: KUBERNETES_PULL_POLICY
+          value: "always"
+        - name: KUBERNETES_POD_SECURITY_CONTEXT_RUN_AS_NON_ROOT
+          value: "true"
+        - name: KUBERNETES_POD_SECURITY_CONTEXT_RUN_AS_USER
+          value: "100"
+        - name: KUBERNETES_POD_SECURITY_CONTEXT_RUN_AS_GROUP
+          value: "100"
+        - name: KUBERNETES_POD_SECURITY_CONTEXT_FS_GROUP
+          value: "65533"
+        - name: CACHE_TYPE
+          value: "s3"
+        - name: CACHE_PATH
+          value: "gitlab_runner"
+        - name: CACHE_SHARED
+          value: "true"
+        - name: CACHE_S3_SERVER_ADDRESS
+          value: "s3.amazonaws.com"
+        - name: CACHE_S3_BUCKET_NAME
+          value: ""
+        - name: CACHE_S3_BUCKET_LOCATION
+          value: ""
+        - name: RUNNER_EXECUTOR
+          value: "kubernetes"
+        livenessProbe:
+          exec:
+            command: ["/bin/bash", "/scripts/check-live"]
+          initialDelaySeconds: 60
+          timeoutSeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        readinessProbe:
+          exec:
+            command: ["/usr/bin/pgrep","gitlab.*runner"]
+          initialDelaySeconds: 10
+          timeoutSeconds: 1
+          periodSeconds: 10
+          successThreshold: 1
+          failureThreshold: 3
+        ports:
+        - name: metrics
+          containerPort: 9252
+        volumeMounts:
+        - name: runner-secrets
+          mountPath: /secrets
+        - name: etc-gitlab-runner
+          mountPath: /home/gitlab-runner/.gitlab-runner
+        - name: scripts
+          mountPath: /scripts
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+          
+      volumes:
+      - name: runner-secrets
+        emptyDir:
+          medium: "Memory"
+      - name: etc-gitlab-runner
+        emptyDir:
+          medium: "Memory"
+      - name: init-runner-secrets
+        projected:
+          sources:
+            - secret:
+                name: "s3access"
+            - secret:
+                name: "runner-gitlab-runner"
+                items:
+                  - key: runner-registration-token
+                    path: runner-registration-token
+                  - key: runner-token
+                    path: runner-token
+      - name: scripts
+        configMap:
+          name: runner-gitlab-runner
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: kubernetes.io/e2e-az-name
+                operator: In
+                values:
+                - e2e-az1
+                - e2e-az2
+        
+      nodeSelector:
+        node-role.kubernetes.io/worker: "true"
+        
+      tolerations:
+        - key: node-role.kubernetes.io/worker
+          operator: Exists
+        
+      hostAliases:
+        - hostnames: null
+          ip: 127.0.0.1
+        - foo.local
+        - bar.local
+        
+
+---
+# Source: gitlab-runner/templates/hpa.yaml
+
+apiVersion: autoscaling/v2beta1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: runner-gitlab-runner
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: runner-gitlab-runner
+  minReplicas: 1
+  maxReplicas: 10
+  metrics:
+  - pods:
+      metricName: gitlab_runner_jobs
+      targetAverageValue: 400m
+    type: Pods
+  
+
+---
+# Source: gitlab-runner/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: "Role"
+metadata:
+  name: runner-gitlab-runner
+  labels:
+    app: runner-gitlab-runner
+    chart: gitlab-runner-0.22.0-beta
+    release: "runner"
+    heritage: "Tiller"
+rules:
+- apiGroups: [""]
+  resources: [pods, pods/exec, secrets]
+  verbs: [get, list, watch, create, patch, delete]
+---
+# Source: gitlab-runner/templates/role-binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: "RoleBinding"
+metadata:
+  name: runner-gitlab-runner
+  labels:
+    app: runner-gitlab-runner
+    chart: gitlab-runner-0.22.0-beta
+    release: "runner"
+    heritage: "Tiller"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: "Role"
+  name: runner-gitlab-runner
+subjects:
+- kind: ServiceAccount
+  name: runner-gitlab-runner
+  namespace: "default"
