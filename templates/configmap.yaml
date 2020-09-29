@@ -66,6 +66,8 @@ data:
     {{- if .Values.sentryDsn }}
     sentry_dsn = "{{ .Values.sentryDsn }}"
     {{- end }}
+  config.template.toml: |
+{{ .Values.runners.config  | indent 4 }}
   configure: |
     set -e
     cp /init-secrets/* /secrets
@@ -111,6 +113,7 @@ data:
         {{-     end }}
         {{-   end }}
         {{- end }}
+        --template-config /scripts/config.template.toml \
         --non-interactive
 
       retval=$?

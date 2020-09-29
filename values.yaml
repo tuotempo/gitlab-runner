@@ -131,15 +131,44 @@ metrics:
 ## Configuration for the Pods that that the runner launches for each new job
 ##
 runners:
+  config: |
+    [[runners]]
+      output_limit = 1026
+      [runners.cache]
+        Type = "s3"
+        Path = "path/to/prefix"
+        Shared = false
+        [runners.cache.s3]
+          ServerAddress = "s3.amazonaws.com"
+          AccessKey = "AWS_S3_ACCESS_KEY"
+          SecretKey = "AWS_S3_SECRET_KEY"
+          BucketName = "runners-cache"
+          BucketLocation = "eu-west-1"
+          Insecure = false
+      [runners.kubernetes]
+      image = "ubuntu:16.04"
+      privileged = true
+      image_pull_secrets = ["test", "testtest"]
+      [runners.kubernetes.pod_security_context]
+        run_as_non_root = true
+        run_as_user = 59417
+        run_as_group = 59417
+        fs_group = 59417
+      [runners.kubernetes.volumes]
+        [[runners.kubernetes.volumes.secret]]
+          name = "a-secret"
+          mount_path = "/a-mount-path"
+          read_only = true
+
   ## Default container image to use for builds when none is specified
   ##
-  image: ubuntu:16.04
+  #image: ubuntu:16.04
 
   ## Specify one or more imagePullSecrets
   ##
   ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   ##
-  # imagePullSecrets: []
+  #imagePullSecrets: []
 
   ## Specify the image pull policy: never, if-not-present, always. The cluster default will be used if not set.
   ##
@@ -180,7 +209,7 @@ runners:
   ## commands. Please read the docs before turning this on:
   ## ref: https://docs.gitlab.com/runner/executors/kubernetes.html#using-dockerdind
   ##
-  privileged: false
+  #privileged: false
 
   ## The name of the secret containing runner-token and runner-registration-token
   # secret: gitlab-runner
@@ -196,7 +225,7 @@ runners:
 
   ## Set maximum build log size in kilobytes, by default set to 4096 (4MB)
   ## ref: https://docs.gitlab.com/runner/configuration/advanced-configuration.html#the-runners-section
-  outputLimit: 4096
+  #outputLimit: 4096
 
   ## Distributed runners caching
   ## ref: https://docs.gitlab.com/runner/configuration/autoscale.html#distributed-runners-caching
@@ -231,18 +260,18 @@ runners:
   ##   --from-literal=gcs-access-id="YourAccessID" \
   ##   --from-literal=gcs-private-key="YourPrivateKey"
   ## ref: https://kubernetes.io/docs/concepts/configuration/secret/
-  cache: {}
+  cache:
     ## General settings
-    # cacheType: s3
-    # cachePath: "gitlab_runner"
-    # cacheShared: true
+    cacheType: s3
+    cachePath: "gitlab_runner"
+    cacheShared: true
 
     ## S3 settings
-    # s3ServerAddress: s3.amazonaws.com
-    # s3BucketName:
-    # s3BucketLocation:
+    s3ServerAddress: s3.amazonaws.com
+    s3BucketName:
+    s3BucketLocation:
     # s3CacheInsecure: false
-    # secretName: s3access
+    secretName: s3access
 
     ## GCS settings
     # gcsBucketName:
