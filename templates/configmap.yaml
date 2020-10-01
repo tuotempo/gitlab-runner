@@ -66,12 +66,16 @@ data:
     {{- if .Values.sentryDsn }}
     sentry_dsn = "{{ .Values.sentryDsn }}"
     {{- end }}
+  config.template.yml: |
+{{ toYaml .Values.runners.config | indent 4  }}
   configure: |
     set -e
     cp /init-secrets/* /secrets
   register-the-runner: |
     #!/bin/bash
     MAX_REGISTER_ATTEMPTS=30
+
+    cat /scripts/config.template.yml
 
     for i in $(seq 1 "${MAX_REGISTER_ATTEMPTS}"); do
       echo "Registration attempt ${i} of ${MAX_REGISTER_ATTEMPTS}"
@@ -111,6 +115,7 @@ data:
         {{-     end }}
         {{-   end }}
         {{- end }}
+        --template-config /scripts/config.template.yml \
         --non-interactive
 
       retval=$?
