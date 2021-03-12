@@ -53,7 +53,7 @@ data:
         if ! sh /configmaps/register-the-runner; then
           exit 1
         fi
-      done
+      done < /secrets/orka-closed-beta-tokens
     else
       # Register the runner
       if ! sh /configmaps/register-the-runner; then
