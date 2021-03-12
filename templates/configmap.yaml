@@ -45,9 +45,20 @@ data:
       export CI_SERVER_TOKEN=$(cat /secrets/runner-token)
     fi
 
-    # Register the runner
-    if ! sh /configmaps/register-the-runner; then
-      exit 1
+    if [[ -f /secrets/orka-closed-beta-tokens ]]; then
+      while read -r line; do
+        export CI_SERVER_TOKEN=$line
+        export REGISTRATION_TOKEN=
+        # Register the runner
+        if ! sh /configmaps/register-the-runner; then
+          exit 1
+        fi
+      done
+    else
+      # Register the runner
+      if ! sh /configmaps/register-the-runner; then
+        exit 1
+      fi
     fi
 
     # Run pre-entrypoint-script
