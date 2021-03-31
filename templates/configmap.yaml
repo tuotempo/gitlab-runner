@@ -52,7 +52,6 @@ data:
     fi
 
     if [[ -f /secrets/runner-registration-token ]]; then
-      export CI_SERVER_TOKEN=
       export REGISTRATION_TOKEN=$(cat /secrets/runner-registration-token)
     fi
 
