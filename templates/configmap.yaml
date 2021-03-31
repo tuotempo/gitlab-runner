@@ -43,7 +43,7 @@ data:
       if ! sh /configmaps/register-the-runner; then
         exit 1
       fi
-    else if [[ -f /secrets/runner-token ]]; then
+    elif [[ -f /secrets/runner-token ]]; then
       cut -d" " -f1 /secrets/runner-token | while read -r line || [[ -n $line ]]; do
         export CI_SERVER_TOKEN=$line
         export REGISTRATION_TOKEN=
