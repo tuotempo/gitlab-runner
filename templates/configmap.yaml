@@ -52,6 +52,7 @@ data:
     fi
 
     if [[ -f /secrets/runner-registration-token ]]; then
+      export CI_SERVER_TOKEN=
       export REGISTRATION_TOKEN=$(cat /secrets/runner-registration-token)
     fi
 
@@ -69,8 +70,8 @@ data:
       exit 1
     fi
 
-    if [[ -f /secrets/orka-closed-beta-tokens ]]; then
-      cut -d" " -f1 /secrets/orka-closed-beta-tokens | while read -r line || [[ -n $line ]]; do
+    if [[ -f /secrets/runner-token && -z $REGISTRATION_TOKEN ]]; then
+      cut -d" " -f1 /secrets/runner-token | while read -r line || [[ -n $line ]]; do
         export CI_SERVER_TOKEN=$line
         export REGISTRATION_TOKEN=
         # Register the runner
@@ -79,7 +80,6 @@ data:
         fi
       done
     else
-      # Register the runner
       if ! sh /configmaps/register-the-runner; then
         exit 1
       fi
