@@ -1,3 +1,9 @@
+## v0.33.1 (2021-10-01)
+
+### New features
+
+- Update GitLab Runner version to 14.3.2
+
 ## v0.33.0 (2021-09-29)
 
 ### New features
