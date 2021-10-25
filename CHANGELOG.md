@@ -1,8 +1,8 @@
-## v0.34.0-rc1 (2021-10-11)
+## v0.34.0 (2021-10-25)
 
 ### New features
 
-- Update GitLab Runner version to 14.4.0-rc1
+- Update GitLab Runner version to 14.4.0
 
 ### Maintenance
 
