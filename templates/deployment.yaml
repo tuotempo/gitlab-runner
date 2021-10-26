@@ -108,6 +108,7 @@ spec:
         ports:
         - name: metrics
           containerPort: 9252
+          protocol: TCP
         volumeMounts:
         - name: runner-secrets
           mountPath: /secrets
