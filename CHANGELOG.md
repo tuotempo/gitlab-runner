@@ -1,3 +1,9 @@
+## v0.35.3 (2021-12-13)
+
+### Bug fixes
+
+- Add quotations to prometheus annotation !325
+
 ## v0.35.2 (2021-12-10)
 
 ### Security
