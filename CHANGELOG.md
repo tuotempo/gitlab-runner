@@ -1,3 +1,9 @@
+## v0.39.1 (2022-05-02)
+
+### Security
+
+- Update GitLab Runner version to 14.9.2
+
 ## v0.39.0 (2022-03-21)
 
 ### New Features
