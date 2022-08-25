@@ -34,23 +34,7 @@ Create chart name and version as used by the chart label.
 Define the name of the secret containing the tokens
 */}}
 {{- define "gitlab-runner.secret" -}}
-{{- default (include "gitlab-runner.fullname" .) .Values.runners.secret | quote -}}
-{{- end -}}
-
-{{/*
-Define the name of the s3 cache secret
-*/}}
-{{- define "gitlab-runner.cache.secret" -}}
-{{- if .Values.runners.cache.secretName -}}
-{{- .Values.runners.cache.secretName | quote -}}
-{{- end -}}
-{{- end -}}
-
-{{/*
-Template for outputing the gitlabUrl
-*/}}
-{{- define "gitlab-runner.gitlabUrl" -}}
-{{- .Values.gitlabUrl | quote -}}
+{{- default (include "gitlab-runner.fullname" .) | quote -}}
 {{- end -}}
 
 {{/*
@@ -99,7 +83,7 @@ Define the server session external port, using 8093 as a default value
 Unregister runner on pod stop
 */}}
 {{- define "gitlab-runner.unregisterRunner" -}}
-{{- if or (and (hasKey .Values "unregisterRunner") .Values.unregisterRunner) (and (not (hasKey .Values "unregisterRunner")) .Values.runnerRegistrationToken) -}}
+{{- if or (and (hasKey .Values "unregisterRunner") .Values.unregisterRunner) (not (hasKey .Values "unregisterRunner")) -}}
 lifecycle:
   preStop:
     exec:
@@ -111,7 +95,7 @@ lifecycle:
 Unregister all runners on pod stop
 */}}
 {{- define "gitlab-runner.unregisterRunners" -}}
-{{- if or (and (hasKey .Values "unregisterRunners") .Values.unregisterRunners) (and (not (hasKey .Values "unregisterRunners")) .Values.runnerRegistrationToken) -}}
+{{- if or (and (hasKey .Values "unregisterRunners") .Values.unregisterRunners) (not (hasKey .Values "unregisterRunners")) -}}
 lifecycle:
   preStop:
     exec:
