@@ -104,9 +104,11 @@ spec:
       - name: projected-secrets
         projected:
           sources:
+            {{- range $index, $runner := .Values.runners }}
+            {{- if or $runner.registrationToken $runner.runnerToken}}
             - secret:
-                name: {{ include "gitlab-runner.secret" . }}   
-            {{- range $index, $runner := .Values.runners }}  
+                name: {{ include "gitlab-runner.fullname" $ }}-{{ $index }}
+            {{- end }}
             {{- if $runner.cacheSecretName }}
             - secret:
                 name: {{ $runner.cacheSecretName | quote }}
