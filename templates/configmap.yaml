@@ -87,26 +87,32 @@ data:
     #!/bin/bash
     MAX_REGISTER_ATTEMPTS=30
 
+    {{- range $index, $runner := .Values.runners }}
     for i in $(seq 1 "${MAX_REGISTER_ATTEMPTS}"); do
       echo "Registration attempt ${i} of ${MAX_REGISTER_ATTEMPTS}"
-      {{- range $index, $runner := .Values.runners }}
-          /entrypoint register --non-interactive  --template-config /configmaps/config.templates.toml-{{ $index }} \
-          --executor {{ default "kubernetes" $runner.executor | quote }}          
-          {{- if (not (regexMatch "\\s*namespace\\s*=" $runner.config)) }} --kubernetes-namespace {{ default $.Release.Namespace | quote }} {{- end -}}
-          {{- if $runner.runnerToken }} --token $(cat /secrets/runner-token-{{ $index }}) {{- end -}}
-          {{- if $runner.registrationToken }} --registration-token $(cat /secrets/runner-registration-token-{{ $index }}) {{- end -}}         
-          {{- if $runner.serviceAccountName }} --kubernetes-service-account {{ $runner.serviceAccountName }} {{- end -}}         
-          {{- if and (hasKey $runner "name") $runner.name }} --name={{ $runner.name | quote -}} {{- end -}}
-          {{ if or (not (hasKey $runner "locked")) $runner.locked }} --locked {{ end -}}
-          {{- range $key, $value := $runner.env }} --env {{ $key | quote -}} = {{- $value | quote }} {{- end -}}
-          {{- if and (hasKey $runner "runUntagged") $runner.runUntagged }} --run-untagged=true {{- end -}}
-          {{- if $runner.tags }} --tag-list {{ $runner.tags }} {{- end -}}                   
-          {{- if and (hasKey $runner "protected") $runner.protected }} --access-level="ref_protected" {{- end -}}
-          {{- if default "" $runner.cacheSecretName | hasPrefix "s3access" }} --cache-s3-access-key $(cat /secrets/{{ $runner.cacheSecretName }}/accesskey) --cache-s3-secret-key $(cat /secrets/{{ $runner.cacheSecretName }}/secretkey) {{- end -}}
-          {{- if default "" $runner.cacheSecretName | hasPrefix "google-application-credentials" }} --cache-gcs-credentials-file /secrets/{{ $runner.cacheSecretName -}} {{- end -}}          
-          {{- if default "" $runner.cacheSecretName | hasPrefix "gcsaccess" }} --cache-gcs-access-id $(cat /secrets/{{ $runner.cacheSecretName }}/gcs-access-id) --cache-gcs-private-key $(cat /secrets/{{ $runner.cacheSecretName }}/gcs-private-key) {{- end -}}   
-          {{- if default "" $runner.cacheSecretName | hasPrefix "azureaccess" }} --cache-azure-account-name $(cat /secrets/{{ $runner.cacheSecretName }}/azure-account-name) --cache-azure-account-key $(cat /secrets/{{ $runner.cacheSecretName }}/azure-account-key) {{- end -}}                       
-      {{- end}}
+
+      if [[ -f /secrets/runner-registration-token-{{ $index }} ]]; then
+        export REGISTRATION_TOKEN=$(cat /secrets/runner-registration-token-{{ $index }})
+      fi
+
+      if [[ -f /secrets/runner-token-{{ $index }} ]]; then
+        export CI_SERVER_TOKEN=$(cat /secrets/runner-token-{{ $index }})
+      fi
+      /entrypoint register --non-interactive  --template-config /configmaps/config.templates.toml-{{ $index }} \
+      --executor {{ default "kubernetes" $runner.executor | quote }}          
+      {{- if (not (regexMatch "\\s*namespace\\s*=" $runner.config)) }} --kubernetes-namespace {{ default $.Release.Namespace | quote }} {{- end -}}       
+      {{- if $runner.serviceAccountName }} --kubernetes-service-account {{ $runner.serviceAccountName }} {{- end -}}         
+      {{- if and (hasKey $runner "name") $runner.name }} --name={{ $runner.name | quote -}} {{- end -}}
+      {{ if or (not (hasKey $runner "locked")) $runner.locked }} --locked {{ end -}}
+      {{- range $key, $value := $runner.env }} --env {{ $key | quote -}} = {{- $value | quote }} {{- end -}}
+      {{- if and (hasKey $runner "runUntagged") $runner.runUntagged }} --run-untagged=true {{- end -}}
+      {{- if $runner.tags }} --tag-list {{ $runner.tags }} {{- end -}}                   
+      {{- if and (hasKey $runner "protected") $runner.protected }} --access-level="ref_protected" {{- end -}}
+      {{- if default "" $runner.cacheSecretName | hasPrefix "s3access" }} --cache-s3-access-key $(cat /secrets/{{ $runner.cacheSecretName }}/accesskey) --cache-s3-secret-key $(cat /secrets/{{ $runner.cacheSecretName }}/secretkey) {{- end -}}
+      {{- if default "" $runner.cacheSecretName | hasPrefix "google-application-credentials" }} --cache-gcs-credentials-file /secrets/{{ $runner.cacheSecretName -}} {{- end -}}          
+      {{- if default "" $runner.cacheSecretName | hasPrefix "gcsaccess" }} --cache-gcs-access-id $(cat /secrets/{{ $runner.cacheSecretName }}/gcs-access-id) --cache-gcs-private-key $(cat /secrets/{{ $runner.cacheSecretName }}/gcs-private-key) {{- end -}}   
+      {{- if default "" $runner.cacheSecretName | hasPrefix "azureaccess" }} --cache-azure-account-name $(cat /secrets/{{ $runner.cacheSecretName }}/azure-account-name) --cache-azure-account-key $(cat /secrets/{{ $runner.cacheSecretName }}/azure-account-key) {{- end}}                       
+
       retval=$?
 
       if [ ${retval} = 0 ]; then
@@ -117,6 +123,8 @@ data:
 
       sleep 5
     done
+    unset REGISTRATION_TOKEN CI_SERVER_TOKEN
+    {{- end}}
 
     exit 0
 
