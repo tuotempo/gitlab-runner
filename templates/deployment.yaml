@@ -115,30 +115,30 @@ spec:
                 {{- if hasPrefix "s3access" $runner.cacheSecretName }}
                 items:
                 - key:  accesskey
-                  path: {{ $runner.cacheSecretName }}/accesskey
+                  path: {{ $runner.cacheSecretName }}-{{ $index }}/accesskey
                 - key:  secretkey
-                  path: {{ $runner.cacheSecretName }}/secretkey                  
+                  path: {{ $runner.cacheSecretName }}-{{ $index }}/secretkey                  
                 {{- end }}
                 {{- if hasPrefix "google-application-credentials" $runner.cacheSecretName }}
                 items:
                 - key:  gcs-application-credentials-file
-                  path: {{ $runner.cacheSecretName }}
+                  path: {{ $runner.cacheSecretName }}-{{ $index }}
                 {{- end }}                
                 {{- if hasPrefix "gcsaccess" $runner.cacheSecretName }}
                 items:
                 - key:  access-id
-                  path: {{ $runner.cacheSecretName }}/access-id
+                  path: {{ $runner.cacheSecretName }}-{{ $index }}/access-id
                 items:
                 - key:  private-key
-                  path: {{ $runner.cacheSecretName }}/private-key             
+                  path: {{ $runner.cacheSecretName }}-{{ $index }}/private-key             
                 {{- end }}       
                 {{- if hasPrefix "azureaccess" $runner.cacheSecretName }}
                 items:
                 - key:  azure-account-name
-                  path: {{ $runner.cacheSecretName }}/access-id
+                  path: {{ $runner.cacheSecretName }}-{{ $index }}/access-id
                 items:
                 - key:  azure-account-key
-                  path: {{ $runner.cacheSecretName }}/private-key             
+                  path: {{ $runner.cacheSecretName }}-{{ $index }}/private-key             
                 {{- end }}                           
             {{- end }}
             {{- end }}

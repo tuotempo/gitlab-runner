@@ -108,10 +108,10 @@ data:
       {{- if and (hasKey $runner "runUntagged") $runner.runUntagged }} --run-untagged=true {{- end -}}
       {{- if $runner.tags }} --tag-list {{ $runner.tags }} {{- end -}}                   
       {{- if and (hasKey $runner "protected") $runner.protected }} --access-level="ref_protected" {{- end -}}
-      {{- if default "" $runner.cacheSecretName | hasPrefix "s3access" }} --cache-s3-access-key $(cat /secrets/{{ $runner.cacheSecretName }}/accesskey) --cache-s3-secret-key $(cat /secrets/{{ $runner.cacheSecretName }}/secretkey) {{- end -}}
-      {{- if default "" $runner.cacheSecretName | hasPrefix "google-application-credentials" }} --cache-gcs-credentials-file /secrets/{{ $runner.cacheSecretName -}} {{- end -}}          
-      {{- if default "" $runner.cacheSecretName | hasPrefix "gcsaccess" }} --cache-gcs-access-id $(cat /secrets/{{ $runner.cacheSecretName }}/gcs-access-id) --cache-gcs-private-key $(cat /secrets/{{ $runner.cacheSecretName }}/gcs-private-key) {{- end -}}   
-      {{- if default "" $runner.cacheSecretName | hasPrefix "azureaccess" }} --cache-azure-account-name $(cat /secrets/{{ $runner.cacheSecretName }}/azure-account-name) --cache-azure-account-key $(cat /secrets/{{ $runner.cacheSecretName }}/azure-account-key) {{- end}}                       
+      {{- if default "" $runner.cacheSecretName | hasPrefix "s3access" }} --cache-s3-access-key $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/accesskey) --cache-s3-secret-key $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/secretkey) {{- end -}}
+      {{- if default "" $runner.cacheSecretName | hasPrefix "google-application-credentials" }} --cache-gcs-credentials-file /secrets/{{ $runner.cacheSecretName -}}-{{ $index }} {{- end -}}          
+      {{- if default "" $runner.cacheSecretName | hasPrefix "gcsaccess" }} --cache-gcs-access-id $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/gcs-access-id) --cache-gcs-private-key $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/gcs-private-key) {{- end -}}   
+      {{- if default "" $runner.cacheSecretName | hasPrefix "azureaccess" }} --cache-azure-account-name $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/azure-account-name) --cache-azure-account-key $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/azure-account-key) {{- end}}                       
 
       retval=$?
 
