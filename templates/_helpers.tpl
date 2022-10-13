@@ -45,6 +45,18 @@ Template runners.cache.s3ServerAddress in order to allow overrides from external
 {{- end -}}
 
 {{/*
+Template for outputing the gitlabUrl
+*/}}
+{{- define "gitlab-runner.gitlabUrl" -}}
+{{- if contains "url" $.config -}}
+{{- $url := regexFind "url\\s*=\\s*.*" $.config -}}
+{{- $url_nospace := nospace $url -}}
+{{- printf "%s" $url_nospace | replace "url=" "" }}
+{{- end -}}
+{{- end -}}
+
+
+{{/*
 Define the image, using .Chart.AppVersion and GitLab Runner image as a default value
 */}}
 {{- define "gitlab-runner.image" }}

@@ -80,7 +80,9 @@ data:
     {{- end }}
 
   {{- range $index, $runner := .Values.runners }}  
+  {{ if $runner.config }}
   config.templates.toml-{{ $index }}: {{ tpl (toYaml $runner.config) $ | indent 2 }}
+  {{ end }}
   {{ end }}
 
   register-the-runner: |
@@ -100,7 +102,7 @@ data:
       fi
       /entrypoint register --non-interactive  --template-config /configmaps/config.templates.toml-{{ $index }} \
       --executor {{ default "kubernetes" $runner.executor | quote }}          
-      {{- if (not (regexMatch "\\s*namespace\\s*=" $runner.config)) }} --kubernetes-namespace {{ default $.Release.Namespace | quote }} {{- end -}}       
+      {{- if $runner.config -}}{{- if (not (regexMatch "\\s*namespace\\s*=" $runner.config)) }} --kubernetes-namespace {{ default $.Release.Namespace | quote }} {{- end -}}{{- end -}}       
       {{- if $runner.serviceAccountName }} --kubernetes-service-account {{ $runner.serviceAccountName }} {{- end -}}         
       {{- if and (hasKey $runner "name") $runner.name }} --name={{ $runner.name | quote -}} {{- end -}}
       {{ if or (not (hasKey $runner "locked")) $runner.locked }} --locked {{ end -}}
