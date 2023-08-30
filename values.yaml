@@ -16,6 +16,11 @@ image:
   image: gitlab-org/gitlab-runner
   # tag: alpine-v11.6.0
 
+## When using GitLab Runner Helm Chart with gitlab-runner-ubi-images (https://gitlab.com/gitlab-org/ci-cd/gitlab-runner-ubi-images/container_registry)
+## the installation fails because dumb-init is not packaged in the image. However, the tini is present.
+## This configuration will allow gitlab-runner-ubi-images users to explicitly enabled the use of `tini` instead of `dumb-init`
+useTini: false
+
 ## Specify a imagePullPolicy for the main runner deployment
 ## 'Always' if imageTag is 'latest', else set to 'IfNotPresent'
 ##
@@ -38,8 +43,6 @@ imagePullPolicy: IfNotPresent
 
 ## How many runner pods to launch.
 ##
-## Note: Using more than one replica is not supported with a runnerToken. Use a runnerRegistrationToken
-## to create multiple runner replicas.
 # replicas: 1
 
 ## How many old ReplicaSets for this Deployment you want to retain
@@ -117,7 +120,7 @@ checkInterval: 30
 ## ref:
 ##
 ## When sessionServer is enabled, the user can either provide a public publicIP
-## or either rely on the external IP auto discovery
+## or rely on the external IP auto discovery
 ## When a serviceAccountName is used with the automounting to the pod disable,
 ## we recommend the usage of the publicIP
 sessionServer:
@@ -133,11 +136,6 @@ sessionServer:
 ## For RBAC support:
 rbac:
   create: false
-
-  ## Define specific rbac permissions.
-  ## DEPRECATED: see .Values.rbac.rules
-  # resources: ["pods", "pods/exec", "secrets"]
-  # verbs: ["get", "list", "watch", "create", "patch", "delete"]
 
   ## Define list of rules to be added to the rbac role permissions.
   ## Each rule supports the keys:
@@ -164,7 +162,10 @@ rbac:
   ##
   # serviceAccountName: default
 
-  ## Specify annotations for Service Accounts, useful for annotations such as eks.amazonaws.com/role-arn
+  ## Specify annotations for Service Accounts, useful for annotations such as eks.amazonaws.com/role-arn.
+  ## Values may refer other values as the _tpl_ function is implicitly applied. Mind the quotes when using this, e.g.
+  ## serviceAccountAnnotations:
+  ##   eks.amazonaws.com/role-arn: "arn:aws:iam::{{ .Values.global.accountId }}:role/{{ .Values.global.iamRoleName }}"
   ##
   ## ref: https://docs.aws.amazon.com/eks/latest/userguide/specify-service-account-role.html
   ##
@@ -277,7 +278,7 @@ service:
   ##
   # loadBalancerSourceRanges: []
 
-  ## Specify the service type e.g., ClusterIP, NodePort, Loadbalancer or ExternalName
+  ## Specify the service type e.g., ClusterIP, NodePort, LoadBalancer or ExternalName
   ##
   ## ref: https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types
   ##
@@ -317,11 +318,11 @@ runners:
       [[runners]]
         [runners.kubernetes]
           namespace = "{{.Release.Namespace}}"
-          image = "ubuntu:16.04"
+          image = "ubuntu:22.04"
     
-    ## The Registration Token for adding new Runners to the GitLab Server. This must
-    ## be retrieved from your GitLab Instance.
-    ## ref: https://docs.gitlab.com/ce/ci/runners/README.html
+    ## DEPRECATED: The Registration Token for adding new Runners to the GitLab Server.
+    ##
+    ## ref: https://docs.gitlab.com/ee/ci/runners/new_creation_workflow.html
     ##
     registrationToken: ""
 
@@ -331,28 +332,28 @@ runners:
     ##
     # runnerToken: ""
 
-    ## Specify whether the runner should be locked to a specific project: true, false. Defaults to true.
+    ## DEPRECATED: Specify whether the runner should be locked to a specific project: true, false.
+    ##
+    ## ref: https://docs.gitlab.com/ee/ci/runners/new_creation_workflow.html
     ##
     # locked: true
 
-    ## Specify the tags associated with the runner. Comma-separated list of tags.
+    ## DEPRECATED: Specify the tags associated with the runner. Comma-separated list of tags.
     ##
-    ## ref: https://docs.gitlab.com/ee/ci/runners/configure_runners.html#use-tags-to-control-which-jobs-a-runner-can-run
+    ##
+    ## ref: https://docs.gitlab.com/ee/ci/runners/new_creation_workflow.html
     ##
     # tags: ""
 
-    ## Specify if jobs without tags should be run.
-    ## If not specified, Runner will default to true if no tags were specified. In other case it will
-    ## default to false.
+    ## DEPRECATED: Specify if jobs without tags should be run.
     ##
-    ## ref: https://docs.gitlab.com/ee/ci/runners/configure_runners.html#set-a-runner-to-run-untagged-jobs
+    ## ref: https://docs.gitlab.com/ee/ci/runners/new_creation_workflow.html
     ##
     # runUntagged: true
 
-    ## Specify whether the runner should only run protected branches.
-    ## Defaults to false.
+    ## DEPRECATED: Specify whether the runner should only run protected branches.
     ##
-    ## ref: https://docs.gitlab.com/ee/ci/runners/configure_runners.html#prevent-runners-from-revealing-sensitive-information
+    ## ref: https://docs.gitlab.com/ee/ci/runners/new_creation_workflow.html
     ##
     # protected: true
 

@@ -13,9 +13,9 @@ data:
     #!/bin/bash
     set -e
 
-    mkdir -p /home/gitlab-runner/.gitlab-runner/
-
-    cp /configmaps/config.toml /home/gitlab-runner/.gitlab-runner/
+    export CONFIG_PATH_FOR_INIT="{{ ternary "/.gitlab-runner/" "/home/gitlab-runner/.gitlab-runner/" (and (hasKey .Values.securityContext "runAsNonRoot") (not .Values.securityContext.runAsNonRoot)) }}"
+    mkdir -p ${CONFIG_PATH_FOR_INIT}
+    cp /configmaps/config.toml ${CONFIG_PATH_FOR_INIT}
 
     {{- if and (eq (default 1.0 .Values.replicas) 1.0) .Values.sessionServer .Values.sessionServer.enabled }}
     quit() {
@@ -27,22 +27,6 @@ data:
     sh /configmaps/set-session-server-address &
     child=$!
     wait "$child"
-    {{- end }}
-
-    {{- range $runner := .Values.runners }}
-    {{- if and (not (empty $runner.runnerToken)) (ne "1" ((default "1" $.Values.replicas) | toString)) }}
-    {{- fail "Using a runner token with more than 1 replica is not supported." }}
-    {{- end -}}
-    {{- end }}
-
-    # Validate this also at runtime in case the user has set a custom secret
-    {{- range $index, $runner := .Values.runners }}
-    if [[ -f /secrets/runner-token-{{ $index }} ]]; then
-      if [[ -s /secrets/runner-token-{{ $index }} && "{{ default 1 $.Values.replicas }}" -ne "1" ]]; then
-        echo "Using a runner token with more than 1 replica is not supported."
-        exit 1
-      fi
-    fi
     {{- end }}
 
     # Register the runner
@@ -100,16 +84,26 @@ data:
       if [[ -f /secrets/runner-token-{{ $index }} ]]; then
         export CI_SERVER_TOKEN=$(cat /secrets/runner-token-{{ $index }})
       fi
+
+      # Reset/unset the not needed flags when an authentication token
+      export REGISTER_RUN_UNTAGGED="{{ ternary "true" "" (and (hasKey $runner "runUntagged") $runner.runUntagged) }}"
+      export REGISTER_ACCESS_LEVEL="{{ ternary "ref_protected" "" (and (hasKey $runner "protected") $runner.protected) }}"
+      export REGISTER_LOCKED="{{ ternary "true" "" (or (not (hasKey $runner "locked")) $runner.locked) }}"
+      export RUNNER_TAG_LIST="{{ ternary $runner.tags "" (hasKey $runner "tags") }}"
+
+      if [ ! -z "$REGISTRATION_TOKEN" ] && [ "${REGISTRATION_TOKEN#glrt-}" != "$REGISTRATION_TOKEN" ]; then
+        unset REGISTER_RUN_UNTAGGED
+        unset REGISTER_ACCESS_LEVEL
+        unset REGISTER_LOCKED
+        unset RUNNER_TAG_LIST
+      fi
+
       /entrypoint register --non-interactive  --template-config /configmaps/config.templates.toml-{{ $index }} \
       --executor {{ default "kubernetes" $runner.executor | quote }}          
       {{- if $runner.config -}}{{- if (not (regexMatch "\\s*namespace\\s*=" $runner.config)) }} --kubernetes-namespace {{ default $.Release.Namespace | quote }} {{- end -}}{{- end -}}       
       {{- if $runner.serviceAccountName }} --kubernetes-service-account {{ $runner.serviceAccountName }} {{- end -}}         
       {{- if and (hasKey $runner "name") $runner.name }} --name={{ $runner.name | quote -}} {{- end -}}
-      {{ if or (not (hasKey $runner "locked")) $runner.locked }} --locked {{ end -}}
-      {{- range $key, $value := $runner.env }} --env {{ $key | quote -}} = {{- $value | quote }} {{- end -}}
-      {{- if and (hasKey $runner "runUntagged") $runner.runUntagged }} --run-untagged=true {{- end -}}
-      {{- if $runner.tags }} --tag-list {{ $runner.tags }} {{- end -}}                   
-      {{- if and (hasKey $runner "protected") $runner.protected }} --access-level="ref_protected" {{- end -}}
+      {{- range $key, $value := $runner.env }} --env {{ $key | quote -}} = {{- $value | quote }} {{- end -}}                
       {{- if default "" $runner.cacheSecretName | hasPrefix "s3access" }} --cache-s3-access-key $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/accesskey) --cache-s3-secret-key $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/secretkey) {{- end -}}
       {{- if default "" $runner.cacheSecretName | hasPrefix "google-application-credentials" }} --cache-gcs-credentials-file /secrets/{{ $runner.cacheSecretName -}}-{{ $index }} {{- end -}}          
       {{- if default "" $runner.cacheSecretName | hasPrefix "gcsaccess" }} --cache-gcs-access-id $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/gcs-access-id) --cache-gcs-private-key $(cat /secrets/{{ $runner.cacheSecretName }}-{{ $index }}/gcs-private-key) {{- end -}}   
@@ -126,6 +120,10 @@ data:
       sleep 5
     done
     unset REGISTRATION_TOKEN CI_SERVER_TOKEN
+    unset REGISTER_RUN_UNTAGGED
+    unset REGISTER_ACCESS_LEVEL
+    unset REGISTER_LOCKED
+    unset RUNNER_TAG_LIST
     {{- end}}
 
     exit 0
