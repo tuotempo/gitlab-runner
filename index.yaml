@@ -1,0 +1,24 @@
+apiVersion: v1
+entries:
+  gitlab-runner:
+  - apiVersion: v1
+    appVersion: bleeding
+    created: "2023-11-15T15:08:54.303591716+01:00"
+    description: GitLab Runner
+    digest: 56a7c6587aba75baa940cc182e5fcf2dfaf65d2beeb087d51d35568e79439cf0
+    icon: https://gitlab.com/uploads/-/system/project/avatar/250833/runner_logo.png
+    keywords:
+    - git
+    - ci
+    - deploy
+    maintainers:
+    - email: support@gitlab.com
+      name: GitLab Inc.
+    name: gitlab-runner
+    sources:
+    - https://gitlab.com/gitlab-org/gitlab-runner
+    - https://docs.gitlab.com/runner/
+    urls:
+    - "https://github.com/tuotempo/gitlab-runner/releases/download/multiplerunner-0.45.0/gitlab-runner-0.45.0-beta.tgz"
+    version: 0.45.0-beta
+generated: "2023-11-15T15:08:54.301423135+01:00"
